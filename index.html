@@ -58,6 +58,11 @@
   }
   .card.winner { border-color: var(--good); box-shadow: 0 0 0 1px var(--good), 0 12px 40px -20px var(--good); }
   .crown { position: absolute; top: 14px; right: 16px; font-size: 22px; }
+  .person {
+    display: inline-block; font-size: 16px; font-weight: 800; letter-spacing: 0.3px;
+    padding: 4px 12px; border-radius: 999px; margin-bottom: 8px;
+    background: rgba(96,165,250,0.15); color: var(--accent); border: 1px solid var(--border);
+  }
   .city { font-size: 20px; font-weight: 700; }
   .region { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
 
@@ -131,8 +136,8 @@
 
 <script>
 const CITIES = [
-  { key: "sandpoint", name: "Sandpoint", region: "North Idaho", lat: 48.2766, lon: -116.5535 },
-  { key: "tampa",     name: "Tampa",     region: "Florida",     lat: 27.9506, lon: -82.4572 },
+  { key: "sandpoint", name: "Sandpoint", region: "North Idaho", person: "Kevin", lat: 48.2766, lon: -116.5535 },
+  { key: "tampa",     name: "Tampa",     region: "Florida",     person: "Jesse", lat: 27.9506, lon: -82.4572 },
 ];
 
 // Open-Meteo WMO weather code -> {emoji, text}
@@ -213,6 +218,7 @@ function cardHTML(c, isWinner){
   return `
   <div class="card ${isWinner ? "winner" : ""}">
     ${isWinner ? '<div class="crown">👑</div>' : ''}
+    <div class="person">👤 ${c.person}</div>
     <div class="city">${c.name}</div>
     <div class="region">${c.region}</div>
     <div class="scorebox">
