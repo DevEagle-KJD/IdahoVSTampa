@@ -177,12 +177,19 @@ function shadeRealFeel(tempF, rh, windMph){
   const at = Ta + 0.33 * e - 0.70 * ws - 4.00;
   return at * 1.8 + 32;                    // back to °F
 }
+// Each score band has a pool of phrases so the label isn't the same word every
+// time — a picked-at-random flavor that still matches how good it actually is.
+const RATING_BANDS = [
+  { min: 80, color: "var(--good)", words: ["Perfect","Glorious","Bluebird day","Chef's kiss","Pristine","Unreal out","Postcard weather","Ten out of ten","Straight gorgeous"] },
+  { min: 60, color: "var(--good)", words: ["Great","Solid","Real nice","Comfy","No complaints","Pretty sweet","Easy living","Nice out"] },
+  { min: 40, color: "var(--mid)", words: ["Meh","Eh","So-so","Middling","Take it or leave it","Fine, I guess","Whatever"] },
+  { min: 20, color: "var(--bad)", words: ["Rough","Yuck","Not great","Kinda gross","Sticky","Rough go","Ugh"] },
+  { min: 0,  color: "var(--bad)", words: ["Brutal","Miserable","Oof","Swamp mode","Nope","Stay inside","Rough day out"] },
+];
 function ratingFor(score){
-  if (score >= 80) return {text:"Perfect", color:"var(--good)"};
-  if (score >= 60) return {text:"Good", color:"var(--good)"};
-  if (score >= 40) return {text:"Meh", color:"var(--mid)"};
-  if (score >= 20) return {text:"Rough", color:"var(--bad)"};
-  return {text:"Horrible", color:"var(--bad)"};
+  const band = RATING_BANDS.find(b => score >= b.min);
+  const text = band.words[Math.floor(Math.random() * band.words.length)];
+  return { text, color: band.color };
 }
 function barColor(v){ return v >= 66 ? "var(--good)" : v >= 33 ? "var(--mid)" : "var(--bad)"; }
 
