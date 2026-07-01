@@ -84,6 +84,9 @@
   .bar-row .top { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 3px; }
   .track { height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
   .fill { height: 100%; border-radius: 999px; transition: width .6s ease; }
+  .bar-row.overall { padding-bottom: 10px; margin-bottom: 2px; border-bottom: 1px solid var(--border); }
+  .bar-row.overall .top { color: var(--text); font-weight: 700; font-size: 13px; }
+  .bar-row.overall .track { height: 11px; }
 
   .explain { margin: 28px auto 0; max-width: 720px; color: var(--muted); font-size: 13px; line-height: 1.6; }
   .explain h3 { color: var(--text); font-size: 15px; margin-bottom: 6px; }
@@ -227,8 +230,8 @@ async function fetchCity(c){
 function cardHTML(c, isWinner){
   const wmo = WMO[c.code] || ["🌡️","—"];
   const rating = ratingFor(c.total);
-  const bar = (label, v) => `
-    <div class="bar-row">
+  const bar = (label, v, big) => `
+    <div class="bar-row${big ? " overall" : ""}">
       <div class="top"><span>${label}</span><span>${v}</span></div>
       <div class="track"><div class="fill" style="width:${v}%;background:${barColor(v)}"></div></div>
     </div>`;
@@ -252,8 +255,9 @@ function cardHTML(c, isWinner){
       <div class="metric"><div class="label">Wind</div><div class="value">${Math.round(c.wind)} mph</div></div>
     </div>
     <div class="bars">
-      ${bar("Air dryness (dew point)", c.parts.dew)}
-      ${bar("Real-feel comfort (shade)", c.parts.feel)}
+      ${bar("Overall comfort", c.total, true)}
+      ${bar("Air dryness (dew point) · 60%", c.parts.dew)}
+      ${bar("Real-feel comfort (shade) · 40%", c.parts.feel)}
     </div>
   </div>`;
 }
