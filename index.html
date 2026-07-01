@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sandpoint, ID vs Tampa, FL — Live Weather Showdown</title>
+<meta name="description" content="Live daily comparison of humidity, real-feel, and mugginess: Sandpoint, Idaho vs Tampa, Florida. Drier wins." />
+<style>
+  :root {
+    --bg: #0b1220;
+    --card: #141d30;
+    --card2: #1b2740;
+    --text: #e7edf7;
+    --muted: #93a1bd;
+    --good: #34d399;
+    --mid: #fbbf24;
+    --bad: #f87171;
+    --accent: #60a5fa;
+    --border: #24324f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #16233d 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 8px; }
+  h1 { font-size: clamp(24px, 5vw, 40px); letter-spacing: -0.5px; }
+  h1 .vs { color: var(--muted); font-weight: 400; }
+  .sub { color: var(--muted); margin-top: 8px; font-size: 14px; }
+  .updated { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  .verdict {
+    text-align: center;
+    margin: 24px auto;
+    padding: 20px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, var(--card2), var(--card));
+    border: 1px solid var(--border);
+    max-width: 640px;
+  }
+  .verdict .big { font-size: clamp(20px, 4.5vw, 30px); font-weight: 700; }
+  .verdict .note { color: var(--muted); margin-top: 6px; font-size: 14px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: linear-gradient(180deg, var(--card2), var(--card));
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card.winner { border-color: var(--good); box-shadow: 0 0 0 1px var(--good), 0 12px 40px -20px var(--good); }
+  .crown { position: absolute; top: 14px; right: 16px; font-size: 22px; }
+  .city { font-size: 20px; font-weight: 700; }
+  .region { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+
+  .scorebox { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 14px; }
+  .score { font-size: 52px; font-weight: 800; line-height: 1; }
+  .score small { font-size: 18px; color: var(--muted); font-weight: 500; }
+  .rating { font-weight: 700; font-size: 15px; padding: 3px 10px; border-radius: 999px; }
+
+  .cond { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: var(--muted); font-size: 14px; }
+  .cond .emoji { font-size: 26px; }
+
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  .metric .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric .value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+
+  .bars { margin-top: 14px; display: grid; gap: 8px; }
+  .bar-row { font-size: 12px; }
+  .bar-row .top { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 3px; }
+  .track { height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 999px; transition: width .6s ease; }
+
+  .explain { margin: 28px auto 0; max-width: 720px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+  .explain h3 { color: var(--text); font-size: 15px; margin-bottom: 6px; }
+  .explain ul { margin: 8px 0 0 18px; }
+  .explain code { background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 6px; color: var(--accent); }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 30px; }
+  footer a { color: var(--accent); }
+  .btn {
+    display: inline-block; margin-top: 12px; cursor: pointer;
+    background: var(--accent); color: #071023; border: none;
+    padding: 9px 16px; border-radius: 10px; font-weight: 700; font-size: 14px;
+  }
+  .loading, .error { text-align: center; color: var(--muted); padding: 40px; }
+  .error { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sandpoint, ID <span class="vs">vs</span> Tampa, FL</h1>
+    <div class="sub">Live daily comfort showdown — <strong>drier &amp; less muggy wins</strong> 🏜️ &gt; 🌴</div>
+    <div class="updated" id="updated"></div>
+  </header>
+
+  <div id="verdict" class="verdict">
+    <div class="big">Loading live weather…</div>
+  </div>
+
+  <div id="cards" class="grid">
+    <div class="loading">Fetching current conditions…</div>
+  </div>
+
+  <section class="explain">
+    <h3>How the comfort score works (higher = better)</h3>
+    <p>A perfect <strong>100</strong> means dry, comfortable, and not muggy — the kind of air North Idaho is known for. The score blends three things:</p>
+    <ul>
+      <li><strong>Humidity (50%)</strong> — anything at or below <code>30%</code> is perfect. It gets worse as humidity climbs toward 90%+.</li>
+      <li><strong>Real feel (30%)</strong> — the "feels like" apparent temperature. Comfortable is ~50–72°F; extreme heat or cold drops the score.</li>
+      <li><strong>Mugginess (20%)</strong> — sunshine <em>times</em> humidity. Sunny + dry is fine; sunny + humid is oppressive and gets punished hard.</li>
+    </ul>
+    <p style="margin-top:10px">Data refreshes live from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> every time this page loads — no login, no cost.</p>
+  </section>
+
+  <footer>
+    <button class="btn" onclick="load()">↻ Refresh now</button>
+    <p style="margin-top:14px">Built for Kevin • Sandpoint, Idaho 🌲 • Data by Open-Meteo</p>
+  </footer>
+</div>
+
+<script>
+const CITIES = [
+  { key: "sandpoint", name: "Sandpoint", region: "North Idaho", lat: 48.2766, lon: -116.5535 },
+  { key: "tampa",     name: "Tampa",     region: "Florida",     lat: 27.9506, lon: -82.4572 },
+];
+
+// Open-Meteo WMO weather code -> {emoji, text}
+const WMO = {
+  0:["☀️","Clear sky"],1:["🌤️","Mainly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],
+  45:["🌫️","Fog"],48:["🌫️","Rime fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],55:["🌦️","Dense drizzle"],
+  56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],
+  66:["🌧️","Freezing rain"],67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],
+  77:["🌨️","Snow grains"],80:["🌦️","Light showers"],81:["🌦️","Showers"],82:["⛈️","Violent showers"],
+  85:["🌨️","Snow showers"],86:["🌨️","Snow showers"],95:["⛈️","Thunderstorm"],96:["⛈️","Thunderstorm w/ hail"],99:["⛈️","Severe thunderstorm"]
+};
+
+// ---- scoring ----
+function humidityScore(h){
+  if (h <= 30) return 100;
+  if (h >= 90) return 0;
+  return Math.round(100 * (90 - h) / 60);
+}
+function realFeelScore(f){
+  // full marks 50-72F, tapering to 0 at <=15F or >=100F
+  if (f >= 50 && f <= 72) return 100;
+  if (f < 50)  return Math.max(0, Math.round(100 * (f - 15) / (50 - 15)));
+  return Math.max(0, Math.round(100 * (100 - f) / (100 - 72)));
+}
+function mugginessScore(h, sunshineHours){
+  // sunshine * humidity => oppressive. Normalize sunshine to ~12h max daylight of sun.
+  const sun = Math.min(sunshineHours, 12) / 12;      // 0..1
+  const hum = Math.min(Math.max((h - 30) / 60, 0), 1); // 0 at 30%, 1 at 90%+
+  const oppressive = sun * hum;                        // 0..1
+  return Math.round(100 * (1 - oppressive));
+}
+function ratingFor(score){
+  if (score >= 80) return {text:"Perfect", color:"var(--good)"};
+  if (score >= 60) return {text:"Good", color:"var(--good)"};
+  if (score >= 40) return {text:"Meh", color:"var(--mid)"};
+  if (score >= 20) return {text:"Rough", color:"var(--bad)"};
+  return {text:"Horrible", color:"var(--bad)"};
+}
+function barColor(v){ return v >= 66 ? "var(--good)" : v >= 33 ? "var(--mid)" : "var(--bad)"; }
+
+async function fetchCity(c){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}`
+    + `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,cloud_cover,wind_speed_10m`
+    + `&daily=sunshine_duration&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`API ${res.status} for ${c.name}`);
+  const d = await res.json();
+  const cur = d.current;
+  const sunshineHours = (d.daily?.sunshine_duration?.[0] ?? 0) / 3600;
+
+  const hS = humidityScore(cur.relative_humidity_2m);
+  const fS = realFeelScore(cur.apparent_temperature);
+  const mS = mugginessScore(cur.relative_humidity_2m, sunshineHours);
+  const total = Math.round(0.5 * hS + 0.3 * fS + 0.2 * mS);
+
+  return {
+    ...c,
+    temp: cur.temperature_2m,
+    feel: cur.apparent_temperature,
+    humidity: cur.relative_humidity_2m,
+    wind: cur.wind_speed_10m,
+    cloud: cur.cloud_cover,
+    code: cur.weather_code,
+    sunshineHours,
+    parts: { humidity: hS, feel: fS, muggy: mS },
+    total,
+  };
+}
+
+function cardHTML(c, isWinner){
+  const wmo = WMO[c.code] || ["🌡️","—"];
+  const rating = ratingFor(c.total);
+  const bar = (label, v) => `
+    <div class="bar-row">
+      <div class="top"><span>${label}</span><span>${v}</span></div>
+      <div class="track"><div class="fill" style="width:${v}%;background:${barColor(v)}"></div></div>
+    </div>`;
+  return `
+  <div class="card ${isWinner ? "winner" : ""}">
+    ${isWinner ? '<div class="crown">👑</div>' : ''}
+    <div class="city">${c.name}</div>
+    <div class="region">${c.region}</div>
+    <div class="scorebox">
+      <div class="score">${c.total}<small>/100</small></div>
+      <div class="rating" style="background:${rating.color};color:#071023">${rating.text}</div>
+    </div>
+    <div class="cond"><span class="emoji">${wmo[0]}</span><span>${wmo[1]} • ${Math.round(c.sunshineHours)}h sun today</span></div>
+    <div class="metrics">
+      <div class="metric"><div class="label">Humidity</div><div class="value">${c.humidity}%</div></div>
+      <div class="metric"><div class="label">Real feel</div><div class="value">${Math.round(c.feel)}°F</div></div>
+      <div class="metric"><div class="label">Air temp</div><div class="value">${Math.round(c.temp)}°F</div></div>
+      <div class="metric"><div class="label">Wind</div><div class="value">${Math.round(c.wind)} mph</div></div>
+    </div>
+    <div class="bars">
+      ${bar("Dryness (humidity)", c.parts.humidity)}
+      ${bar("Real-feel comfort", c.parts.feel)}
+      ${bar("Not muggy", c.parts.muggy)}
+    </div>
+  </div>`;
+}
+
+async function load(){
+  const cardsEl = document.getElementById("cards");
+  const verdictEl = document.getElementById("verdict");
+  const updatedEl = document.getElementById("updated");
+  cardsEl.innerHTML = '<div class="loading">Fetching current conditions…</div>';
+  verdictEl.innerHTML = '<div class="big">Loading live weather…</div>';
+  try {
+    const results = await Promise.all(CITIES.map(fetchCity));
+    const [a, b] = results;
+    const winner = a.total === b.total ? null : (a.total > b.total ? a : b);
+    const loser  = winner ? (winner === a ? b : a) : null;
+
+    // winner card first
+    const ordered = winner ? [winner, loser] : results;
+    cardsEl.innerHTML = ordered.map(c => cardHTML(c, winner && c === winner)).join("");
+
+    if (winner){
+      const diff = Math.abs(a.total - b.total);
+      verdictEl.innerHTML = `
+        <div class="big">🏆 ${winner.name} wins by ${diff} points</div>
+        <div class="note">${winner.name} is the more comfortable, drier place to be right now.
+        ${winner.key === "sandpoint" ? "Home sweet dry home. 🌲" : "Tampa out here beating Idaho today?! 😅"}</div>`;
+    } else {
+      verdictEl.innerHTML = `<div class="big">🤝 Dead tie at ${a.total}/100</div><div class="note">Somehow equally comfortable right now.</div>`;
+    }
+
+    const now = new Date();
+    updatedEl.textContent = "Live data • updated " + now.toLocaleString();
+  } catch (err){
+    cardsEl.innerHTML = "";
+    verdictEl.innerHTML = `<div class="big">⚠️ Couldn't load weather</div><div class="note">${err.message}. Try refreshing.</div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>
