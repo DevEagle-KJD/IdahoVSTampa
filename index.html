@@ -196,32 +196,98 @@ function ratingFor(score){
 }
 function barColor(v){ return v >= 66 ? "var(--good)" : v >= 33 ? "var(--mid)" : "var(--bad)"; }
 
-async function fetchCity(c){
+// --- convert between humidity and dew point (°F) to fill any gaps in station data ---
+function rhFromTempDew(tF, tdF){
+  const T = (tF - 32) / 1.8, Td = (tdF - 32) / 1.8;
+  return 100 * Math.exp(17.27 * Td / (237.7 + Td)) / Math.exp(17.27 * T / (237.7 + T));
+}
+function dewFromTempRH(tF, rh){
+  const T = (tF - 32) / 1.8;
+  const g = Math.log(Math.max(rh, 1) / 100) + 17.27 * T / (237.7 + T);
+  return (237.7 * g / (17.27 - g)) * 1.8 + 32;
+}
+
+// Live model data (Open-Meteo): used for sun real-feel, sunshine, weather icon,
+// and as a full fallback if the station feed is unavailable.
+async function fetchModel(c){
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}`
     + `&current=temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m,weather_code,cloud_cover,wind_speed_10m`
     + `&daily=sunshine_duration&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`API ${res.status} for ${c.name}`);
-  const d = await res.json();
-  const cur = d.current;
-  const sunshineHours = (d.daily?.sunshine_duration?.[0] ?? 0) / 3600;
+  if (!res.ok) throw new Error(`Open-Meteo ${res.status} for ${c.name}`);
+  const d = await res.json(), cur = d.current;
+  return {
+    temp: cur.temperature_2m, humidity: cur.relative_humidity_2m,
+    dewPoint: cur.dew_point_2m, feel: cur.apparent_temperature,
+    wind: cur.wind_speed_10m, cloud: cur.cloud_cover, code: cur.weather_code,
+    sunshineHours: (d.daily?.sunshine_duration?.[0] ?? 0) / 3600,
+  };
+}
 
-  const shadeFeel = shadeRealFeel(cur.temperature_2m, cur.relative_humidity_2m, cur.wind_speed_10m);
-  const dS = dewPointScore(cur.dew_point_2m);
+// Real measured conditions from the nearest National Weather Service station —
+// the same observations Google/AccuWeather report. Free, no API key. Tries the
+// few closest stations until one has a usable, recent reading.
+async function fetchStation(c){
+  const pt = await (await fetch(`https://api.weather.gov/points/${c.lat},${c.lon}`)).json();
+  const list = await (await fetch(pt.properties.observationStations)).json();
+  const stations = (list.features || []).slice(0, 4).map(f => f.properties.stationIdentifier);
+  for (const stationId of stations){
+    try {
+      const obs = await (await fetch(`https://api.weather.gov/stations/${stationId}/observations/latest`)).json();
+      const p = obs.properties || {};
+      const cToF = v => (v == null ? null : v * 9 / 5 + 32);
+      let temp = cToF(p.temperature?.value);
+      let dew  = cToF(p.dewpoint?.value);
+      let rh   = p.relativeHumidity?.value;
+      let wind = p.windSpeed?.value;
+      if (wind != null){
+        const u = p.windSpeed.unitCode || "";
+        wind = u.includes("km_h") ? wind * 0.621371 : u.includes("m_s") ? wind * 2.23694 : wind;
+      }
+      if (temp == null) continue;
+      if (rh == null && dew != null) rh  = rhFromTempDew(temp, dew);
+      if (dew == null && rh != null) dew = dewFromTempRH(temp, rh);
+      if (rh == null || dew == null) continue;
+      return { temp, dewPoint: dew, humidity: Math.round(rh), wind: wind ?? 0, stationId };
+    } catch (e){ /* try the next-closest station */ }
+  }
+  throw new Error(`no usable station for ${c.name}`);
+}
+
+async function fetchCity(c){
+  const model = await fetchModel(c);            // always available; also the fallback
+  let obs = null;
+  try { obs = await fetchStation(c); } catch (e){ obs = null; }
+
+  // Real measured numbers when we have them, otherwise the model's.
+  const temp     = obs ? obs.temp     : model.temp;
+  const humidity = obs ? obs.humidity : model.humidity;
+  const dewPoint = obs ? obs.dewPoint : model.dewPoint;
+  const wind     = obs ? obs.wind     : model.wind;
+
+  const shadeFeel = shadeRealFeel(temp, humidity, wind);
+  // Sun real-feel = shade + the sun's contribution (from the model), re-anchored
+  // onto the real shade temp so the sun/shade pair stays coherent.
+  const modelShade = shadeRealFeel(model.temp, model.humidity, model.wind);
+  const solarBump = Math.max(0, model.feel - modelShade);
+  const feel = shadeFeel + solarBump;
+
+  const dS = dewPointScore(dewPoint);
   const fS = realFeelScore(shadeFeel);
   const total = Math.round(0.6 * dS + 0.4 * fS);
 
   return {
     ...c,
-    temp: cur.temperature_2m,
-    feel: cur.apparent_temperature,   // real feel in the sun (from Open-Meteo)
-    shadeFeel,                        // real feel in the shade (computed)
-    dewPoint: cur.dew_point_2m,
-    humidity: cur.relative_humidity_2m,
-    wind: cur.wind_speed_10m,
-    cloud: cur.cloud_cover,
-    code: cur.weather_code,
-    sunshineHours,
+    temp,
+    feel,                             // real feel in the sun
+    shadeFeel,                        // real feel in the shade
+    dewPoint,
+    humidity,
+    wind,
+    cloud: model.cloud,
+    code: model.code,
+    sunshineHours: model.sunshineHours,
+    source: obs ? obs.stationId : "model",
     parts: { dew: dS, feel: fS },
     total,
   };
@@ -245,7 +311,7 @@ function cardHTML(c, isWinner){
       <div class="score">${c.total}<small>/100</small></div>
       <div class="rating" style="background:${rating.color};color:#071023">${rating.text}</div>
     </div>
-    <div class="cond"><span class="emoji">${wmo[0]}</span><span>${wmo[1]} • ${Math.round(c.sunshineHours)}h sun today</span></div>
+    <div class="cond"><span class="emoji">${wmo[0]}</span><span>${wmo[1]} • ${Math.round(c.sunshineHours)}h sun today • ${c.source === "model" ? "model data" : c.source + " station"}</span></div>
     <div class="metrics">
       <div class="metric"><div class="label">Air temp</div><div class="value">${Math.round(c.temp)}°F</div></div>
       <div class="metric"><div class="label">Real feel · sun</div><div class="value">${Math.round(c.feel)}°F</div></div>
