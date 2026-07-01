@@ -125,7 +125,7 @@
     <p>A perfect <strong>100</strong> means dry, comfortable air — the kind North Idaho is known for. I deliberately <em>don't</em> score on raw humidity, because it lies: 75% humidity on a crisp 59°F morning feels fantastic, not muggy. Instead the score is built from two honest measures:</p>
     <ul>
       <li><strong>Air dryness — dew point (60%)</strong> — dew point is the <em>actual</em> moisture in the air, so it tracks how "sticky" it feels regardless of temperature. At or below <code>50°F</code> the air is dry and crisp (full marks); by <code>70°F</code> it's tropical and oppressive (zero). This is why a hot-but-dry day still scores well — low humidity means a low dew point.</li>
-      <li><strong>Real-feel comfort — in the shade (40%)</strong> — the "feels like" temperature measured <em>out of direct sun</em>, because dry heat in the shade is far more bearable than the same number baking in the sun. Comfortable is ~<code>55–82°F</code>; extreme heat or cold drops the score.</li>
+      <li><strong>Real-feel comfort — in the shade (40%)</strong> — the "feels like" temperature measured <em>out of direct sun</em>, because dry heat in the shade is far more bearable than the same number baking in the sun. Most comfortable right around <code>75°F</code> (full marks ~70–78°F); it eases off as it gets colder or hotter, so a crisp 58°F morning still scores well but isn't a literal 100.</li>
     </ul>
     <p style="margin-top:10px">Each card shows <strong>both</strong> real-feel numbers — <code>sun</code> (a sunny spot) and <code>shade</code> (a shady spot) — plus the dew point. The score uses the shade value. Data refreshes live from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> every time this page loads — no login, no cost.</p>
   </section>
@@ -166,10 +166,10 @@ function dewPointScore(td){
 // Comfort of the "feels like" temperature, measured in the SHADE. Dry heat in
 // the shade is far more bearable than the same number baking in full sun.
 function realFeelScore(f){
-  // full marks 55-82F, tapering to 0 at <=15F or >=110F
-  if (f >= 55 && f <= 82) return 100;
-  if (f < 55)  return Math.max(0, Math.round(100 * (f - 15) / (55 - 15)));
-  return Math.max(0, Math.round(100 * (110 - f) / (110 - 82)));
+  // peaks at ~75F: full marks 70-78F, tapering to 0 at <=35F or >=102F
+  if (f >= 70 && f <= 78) return 100;
+  if (f < 70)  return Math.max(0, Math.round(100 * (f - 35) / (70 - 35)));
+  return Math.max(0, Math.round(100 * (102 - f) / (102 - 78)));
 }
 // Apparent ("real feel") temperature in the SHADE — Australian BOM formula with
 // the solar-radiation term removed, so it's what a shady spot feels like.
@@ -183,10 +183,10 @@ function shadeRealFeel(tempF, rh, windMph){
 // Each score band has a pool of phrases so the label isn't the same word every
 // time — a picked-at-random flavor that still matches how good it actually is.
 const RATING_BANDS = [
-  { min: 80, color: "var(--good)", words: ["Perfect","Glorious","Bluebird day","Chef's kiss","Pristine","Unreal out","Postcard weather","Ten out of ten","Straight gorgeous","Can't beat it"] },
-  { min: 60, color: "var(--good)", words: ["Great","Solid","Real nice","Comfy","No complaints","Pretty sweet","Easy living","Nice out","Darn good","Quite pleasant"] },
-  { min: 40, color: "var(--mid)", words: ["Meh","Eh","So-so","Middling","Nothing special","Could be worse","Passable","Whatever","Kinda blah","Not thrilling"] },
-  { min: 20, color: "var(--bad)", words: ["Rough","Yuck","Not great","Kinda gross","Sticky","Sweaty mess","Ugh","Pretty gross","Hard pass","Unpleasant"] },
+  { min: 90, color: "var(--good)", words: ["Perfect","Glorious","Bluebird day","Chef's kiss","Pristine","Unreal out","Postcard weather","Ten out of ten","Straight gorgeous","Can't beat it"] },
+  { min: 70, color: "var(--good)", words: ["Great","Solid","Real nice","Comfy","No complaints","Pretty sweet","Easy living","Nice out","Darn good","Quite pleasant"] },
+  { min: 50, color: "var(--mid)", words: ["Meh","Eh","So-so","Middling","Nothing special","Could be worse","Passable","Whatever","Kinda blah","Not thrilling"] },
+  { min: 25, color: "var(--bad)", words: ["Rough","Yuck","Not great","Kinda gross","Sticky","Sweaty mess","Ugh","Pretty gross","Hard pass","Unpleasant"] },
   { min: 0,  color: "var(--bad)", words: ["Brutal","Miserable","Oof","Swamp mode","Nope","Stay inside","Rough day out","Absolutely not","Punishing","Soup weather"] },
 ];
 function ratingFor(score){
