@@ -180,11 +180,11 @@ function shadeRealFeel(tempF, rh, windMph){
 // Each score band has a pool of phrases so the label isn't the same word every
 // time — a picked-at-random flavor that still matches how good it actually is.
 const RATING_BANDS = [
-  { min: 80, color: "var(--good)", words: ["Perfect","Glorious","Bluebird day","Chef's kiss","Pristine","Unreal out","Postcard weather","Ten out of ten","Straight gorgeous"] },
-  { min: 60, color: "var(--good)", words: ["Great","Solid","Real nice","Comfy","No complaints","Pretty sweet","Easy living","Nice out"] },
-  { min: 40, color: "var(--mid)", words: ["Meh","Eh","So-so","Middling","Take it or leave it","Fine, I guess","Whatever"] },
-  { min: 20, color: "var(--bad)", words: ["Rough","Yuck","Not great","Kinda gross","Sticky","Rough go","Ugh"] },
-  { min: 0,  color: "var(--bad)", words: ["Brutal","Miserable","Oof","Swamp mode","Nope","Stay inside","Rough day out"] },
+  { min: 80, color: "var(--good)", words: ["Perfect","Glorious","Bluebird day","Chef's kiss","Pristine","Unreal out","Postcard weather","Ten out of ten","Straight gorgeous","Can't beat it"] },
+  { min: 60, color: "var(--good)", words: ["Great","Solid","Real nice","Comfy","No complaints","Pretty sweet","Easy living","Nice out","Darn good","Quite pleasant"] },
+  { min: 40, color: "var(--mid)", words: ["Meh","Eh","So-so","Middling","Nothing special","Could be worse","Passable","Whatever","Kinda blah","Not thrilling"] },
+  { min: 20, color: "var(--bad)", words: ["Rough","Yuck","Not great","Kinda gross","Sticky","Sweaty mess","Ugh","Pretty gross","Hard pass","Unpleasant"] },
+  { min: 0,  color: "var(--bad)", words: ["Brutal","Miserable","Oof","Swamp mode","Nope","Stay inside","Rough day out","Absolutely not","Punishing","Soup weather"] },
 ];
 function ratingFor(score){
   const band = RATING_BANDS.find(b => score >= b.min);
