@@ -119,13 +119,12 @@
 
   <section class="explain">
     <h3>How the comfort score works (higher = better)</h3>
-    <p>A perfect <strong>100</strong> means dry, comfortable, and not muggy — the kind of air North Idaho is known for. The score blends three things:</p>
+    <p>A perfect <strong>100</strong> means dry, comfortable air — the kind North Idaho is known for. We deliberately <em>don't</em> score on raw humidity, because it lies: 75% humidity on a crisp 59°F morning feels fantastic, not muggy. Instead the score is built from two honest measures:</p>
     <ul>
-      <li><strong>Humidity (50%)</strong> — anything at or below <code>30%</code> is perfect. It gets worse as humidity climbs toward 90%+.</li>
-      <li><strong>Real feel (30%)</strong> — the "feels like" apparent temperature. Comfortable is ~50–72°F; extreme heat or cold drops the score.</li>
-      <li><strong>Mugginess (20%)</strong> — sunshine <em>times</em> humidity. Sunny + dry is fine; sunny + humid is oppressive and gets punished hard.</li>
+      <li><strong>Air dryness — dew point (60%)</strong> — dew point is the <em>actual</em> moisture in the air, so it tracks how "sticky" it feels regardless of temperature. At or below <code>50°F</code> the air is dry and crisp (full marks); by <code>70°F</code> it's tropical and oppressive (zero). This is why a hot-but-dry day still scores well — low humidity means a low dew point.</li>
+      <li><strong>Real-feel comfort — in the shade (40%)</strong> — the "feels like" temperature measured <em>out of direct sun</em>, because dry heat in the shade is far more bearable than the same number baking in the sun. Comfortable is ~<code>55–82°F</code>; extreme heat or cold drops the score.</li>
     </ul>
-    <p style="margin-top:10px">Data refreshes live from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> every time this page loads — no login, no cost.</p>
+    <p style="margin-top:10px">Each card shows <strong>both</strong> real-feel numbers — <code>sun</code> (a sunny spot) and <code>shade</code> (a shady spot) — plus the dew point. The score uses the shade value. Data refreshes live from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> every time this page loads — no login, no cost.</p>
   </section>
 
   <footer>
@@ -151,36 +150,52 @@ const WMO = {
 };
 
 // ---- scoring ----
-function humidityScore(h){
-  if (h <= 30) return 100;
-  if (h >= 90) return 0;
-  return Math.round(100 * (90 - h) / 60);
+// Dew point is the honest measure of how "sticky" the air is: it reflects the
+// actual moisture in the air, not just % of saturation. So 15% humidity always
+// means a low dew point (dry & awesome), while 75% on a cool morning is still
+// comfortable because the dew point is low. Low dew point = pleasant.
+function dewPointScore(td){
+  // td in °F. <=50 feels dry/crisp; >=70 is tropical & oppressive.
+  if (td <= 50) return 100;
+  if (td >= 70) return 0;
+  return Math.round(100 * (70 - td) / 20);
 }
+// Comfort of the "feels like" temperature, measured in the SHADE. Dry heat in
+// the shade is far more bearable than the same number baking in full sun.
 function realFeelScore(f){
-  // full marks 50-72F, tapering to 0 at <=15F or >=100F
-  if (f >= 50 && f <= 72) return 100;
-  if (f < 50)  return Math.max(0, Math.round(100 * (f - 15) / (50 - 15)));
-  return Math.max(0, Math.round(100 * (100 - f) / (100 - 72)));
+  // full marks 55-82F, tapering to 0 at <=15F or >=110F
+  if (f >= 55 && f <= 82) return 100;
+  if (f < 55)  return Math.max(0, Math.round(100 * (f - 15) / (55 - 15)));
+  return Math.max(0, Math.round(100 * (110 - f) / (110 - 82)));
 }
-function mugginessScore(h, sunshineHours){
-  // sunshine * humidity => oppressive. Normalize sunshine to ~12h max daylight of sun.
-  const sun = Math.min(sunshineHours, 12) / 12;      // 0..1
-  const hum = Math.min(Math.max((h - 30) / 60, 0), 1); // 0 at 30%, 1 at 90%+
-  const oppressive = sun * hum;                        // 0..1
-  return Math.round(100 * (1 - oppressive));
+// Apparent ("real feel") temperature in the SHADE — Australian BOM formula with
+// the solar-radiation term removed, so it's what a shady spot feels like.
+function shadeRealFeel(tempF, rh, windMph){
+  const Ta = (tempF - 32) / 1.8;          // air temp in °C
+  const ws = windMph * 0.44704;           // wind in m/s
+  const e  = (rh / 100) * 6.105 * Math.exp(17.27 * Ta / (237.7 + Ta)); // vapor pressure hPa
+  const at = Ta + 0.33 * e - 0.70 * ws - 4.00;
+  return at * 1.8 + 32;                    // back to °F
 }
+// Each score band has a pool of phrases so the label isn't the same word every
+// time — a picked-at-random flavor that still matches how good it actually is.
+const RATING_BANDS = [
+  { min: 80, color: "var(--good)", words: ["Perfect","Glorious","Bluebird day","Chef's kiss","Pristine","Unreal out","Postcard weather","Ten out of ten","Straight gorgeous"] },
+  { min: 60, color: "var(--good)", words: ["Great","Solid","Real nice","Comfy","No complaints","Pretty sweet","Easy living","Nice out"] },
+  { min: 40, color: "var(--mid)", words: ["Meh","Eh","So-so","Middling","Take it or leave it","Fine, I guess","Whatever"] },
+  { min: 20, color: "var(--bad)", words: ["Rough","Yuck","Not great","Kinda gross","Sticky","Rough go","Ugh"] },
+  { min: 0,  color: "var(--bad)", words: ["Brutal","Miserable","Oof","Swamp mode","Nope","Stay inside","Rough day out"] },
+];
 function ratingFor(score){
-  if (score >= 80) return {text:"Perfect", color:"var(--good)"};
-  if (score >= 60) return {text:"Good", color:"var(--good)"};
-  if (score >= 40) return {text:"Meh", color:"var(--mid)"};
-  if (score >= 20) return {text:"Rough", color:"var(--bad)"};
-  return {text:"Horrible", color:"var(--bad)"};
+  const band = RATING_BANDS.find(b => score >= b.min);
+  const text = band.words[Math.floor(Math.random() * band.words.length)];
+  return { text, color: band.color };
 }
 function barColor(v){ return v >= 66 ? "var(--good)" : v >= 33 ? "var(--mid)" : "var(--bad)"; }
 
 async function fetchCity(c){
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}`
-    + `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,cloud_cover,wind_speed_10m`
+    + `&current=temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m,weather_code,cloud_cover,wind_speed_10m`
     + `&daily=sunshine_duration&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=1`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`API ${res.status} for ${c.name}`);
@@ -188,21 +203,23 @@ async function fetchCity(c){
   const cur = d.current;
   const sunshineHours = (d.daily?.sunshine_duration?.[0] ?? 0) / 3600;
 
-  const hS = humidityScore(cur.relative_humidity_2m);
-  const fS = realFeelScore(cur.apparent_temperature);
-  const mS = mugginessScore(cur.relative_humidity_2m, sunshineHours);
-  const total = Math.round(0.5 * hS + 0.3 * fS + 0.2 * mS);
+  const shadeFeel = shadeRealFeel(cur.temperature_2m, cur.relative_humidity_2m, cur.wind_speed_10m);
+  const dS = dewPointScore(cur.dew_point_2m);
+  const fS = realFeelScore(shadeFeel);
+  const total = Math.round(0.6 * dS + 0.4 * fS);
 
   return {
     ...c,
     temp: cur.temperature_2m,
-    feel: cur.apparent_temperature,
+    feel: cur.apparent_temperature,   // real feel in the sun (from Open-Meteo)
+    shadeFeel,                        // real feel in the shade (computed)
+    dewPoint: cur.dew_point_2m,
     humidity: cur.relative_humidity_2m,
     wind: cur.wind_speed_10m,
     cloud: cur.cloud_cover,
     code: cur.weather_code,
     sunshineHours,
-    parts: { humidity: hS, feel: fS, muggy: mS },
+    parts: { dew: dS, feel: fS },
     total,
   };
 }
@@ -227,15 +244,16 @@ function cardHTML(c, isWinner){
     </div>
     <div class="cond"><span class="emoji">${wmo[0]}</span><span>${wmo[1]} • ${Math.round(c.sunshineHours)}h sun today</span></div>
     <div class="metrics">
-      <div class="metric"><div class="label">Humidity</div><div class="value">${c.humidity}%</div></div>
-      <div class="metric"><div class="label">Real feel</div><div class="value">${Math.round(c.feel)}°F</div></div>
       <div class="metric"><div class="label">Air temp</div><div class="value">${Math.round(c.temp)}°F</div></div>
+      <div class="metric"><div class="label">Real feel · sun</div><div class="value">${Math.round(c.feel)}°F</div></div>
+      <div class="metric"><div class="label">Real feel · shade</div><div class="value">${Math.round(c.shadeFeel)}°F</div></div>
+      <div class="metric"><div class="label">Dew point</div><div class="value">${Math.round(c.dewPoint)}°F</div></div>
+      <div class="metric"><div class="label">Humidity</div><div class="value">${c.humidity}%</div></div>
       <div class="metric"><div class="label">Wind</div><div class="value">${Math.round(c.wind)} mph</div></div>
     </div>
     <div class="bars">
-      ${bar("Dryness (humidity)", c.parts.humidity)}
-      ${bar("Real-feel comfort", c.parts.feel)}
-      ${bar("Not muggy", c.parts.muggy)}
+      ${bar("Air dryness (dew point)", c.parts.dew)}
+      ${bar("Real-feel comfort (shade)", c.parts.feel)}
     </div>
   </div>`;
 }
