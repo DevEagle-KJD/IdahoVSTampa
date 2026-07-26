@@ -221,6 +221,8 @@ async function fetchModel(c){
     dewPoint: cur.dew_point_2m, feel: cur.apparent_temperature,
     wind: cur.wind_speed_10m, cloud: cur.cloud_cover, code: cur.weather_code,
     sunshineHours: (d.daily?.sunshine_duration?.[0] ?? 0) / 3600,
+    timezone: d.timezone,                       // IANA tz for this location
+    utcOffsetSeconds: d.utc_offset_seconds,      // fallback if Intl tz is unavailable
   };
 }
 
@@ -288,9 +290,26 @@ async function fetchCity(c){
     code: model.code,
     sunshineHours: model.sunshineHours,
     source: obs ? obs.stationId : "model",
+    timezone: model.timezone,
+    utcOffsetSeconds: model.utcOffsetSeconds,
     parts: { dew: dS, feel: fS },
     total,
   };
+}
+
+// The current local time at a place, e.g. "11:34 AM". Prefers the IANA timezone;
+// falls back to the raw UTC offset if the browser can't resolve the zone.
+function localTimeFor(c){
+  try {
+    return new Date().toLocaleTimeString("en-US", {
+      timeZone: c.timezone, hour: "numeric", minute: "2-digit",
+    });
+  } catch (e){
+    const ms = Date.now() + (c.utcOffsetSeconds || 0) * 1000;
+    return new Date(ms).toLocaleTimeString("en-US", {
+      timeZone: "UTC", hour: "numeric", minute: "2-digit",
+    });
+  }
 }
 
 function cardHTML(c, isWinner){
@@ -306,7 +325,7 @@ function cardHTML(c, isWinner){
     ${isWinner ? '<div class="crown">👑</div>' : ''}
     <div class="person">👤 ${c.person}</div>
     <div class="city">${c.name}</div>
-    <div class="region">${c.region}</div>
+    <div class="region">${c.region} • 🕐 ${localTimeFor(c)} local</div>
     <div class="scorebox">
       <div class="score">${c.total}<small>/100</small></div>
       <div class="rating" style="background:${rating.color};color:#071023">${rating.text}</div>
